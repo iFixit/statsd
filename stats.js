@@ -76,7 +76,7 @@ var l;
 
 config.configFile(process.argv[2], function (config, oldConfig) {
   if (! config.debug && debugInt) {
-    clearInterval(debugInt);
+    clearAccurateInterval(debugInt);
     debugInt = false;
   }
 
@@ -84,9 +84,9 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
   if (config.debug) {
     if (debugInt !== undefined) {
-      clearInterval(debugInt);
+      clearAccurateInterval(debugInt);
     }
-    debugInt = setInterval(function () {
+    debugInt = setAccurateInterval(function () {
       l.log("Counters:\n" + util.inspect(counters) +
                "\nTimers:\n" + util.inspect(timers) +
                "\nGauges:\n" + util.inspect(gauges), 'debug');
@@ -282,13 +282,13 @@ config.configFile(process.argv[2], function (config, oldConfig) {
     }
 
     // Setup the flush timer
-    var flushInt = setInterval(flushMetrics, flushInterval);
+    var flushInt = setAccurateInterval(flushMetrics, flushInterval);
 
     if (keyFlushInterval > 0) {
       var keyFlushPercent = Number((config.keyFlush && config.keyFlush.percent) || 100);
       var keyFlushLog = (config.keyFlush && config.keyFlush.log) || "stdout";
 
-      keyFlushInt = setInterval(function () {
+      keyFlushInt = setAccurateInterval(function () {
         var key;
         var sortedKeys = [];
 
@@ -318,5 +318,30 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
   ;
 
+  }
+
+  function setAccurateInterval(callback, interval) {
+     var t = Date.now();
+     var timer;
+     function tick() {
+        callback();
+        setNext();
+     }
+
+     function setNext() {
+        var error = Math.min(Date.now() - t, interval / 2);
+        timer = setTimeout(tick,  interval - error);
+        t = t + interval;
+     }
+
+     setNext();
+
+     return function handle() {
+        clearTimeout(timer);
+     };
+  }
+
+  function clearAccurateInterval(handle) {
+     handle();
   }
 })
