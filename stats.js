@@ -328,6 +328,11 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
     /**
      * Returns false if the packet is bad, or the trimmed packet if it is good.
+     *
+     * We ran into a situation where partial packets were being received by
+     * statsd every once in a while leading to many stats being recorded under
+     * truncated names. This function verifies that the packet is either
+     * surrounded by () on both ends, or is not surrounded at all.
      */
     function verifyPacketIntegrity(msg) {
       var hasPrefix = msg[0] == '(',
@@ -338,7 +343,7 @@ config.configFile(process.argv[2], function (config, oldConfig) {
         msg = msg.substr(1, msg.length-2);
         return msg;
       } else if (!hasPrefix && !hasSuffix) {
-        return true;
+        return msg;
       }
 
       return false;
