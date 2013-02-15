@@ -10,7 +10,8 @@ var dgram  = require('dgram')
 var keyCounter = {};
 var counters = {
   "statsd.packets_received": 0,
-  "statsd.bad_lines_seen": 0
+  "statsd.bad_lines_seen": 0,
+  "statsd.bad_packets_received": 0
 };
 var timers = {
   "statsd.packet_process_time": []
@@ -68,6 +69,7 @@ var stats = {
   messages: {
     last_msg_seen: startup_time,
     bad_lines_seen: 0,
+    bad_packets_received: 0
   }
 };
 
@@ -105,8 +107,8 @@ config.configFile(process.argv[2], function (config, oldConfig) {
       var goodPacket = verifyPacketIntegrity(msg);
       if (!goodPacket) {
         l.log("Bad packet>>>\n" + msg + "\nBad packet<<<");
-        counters["statsd.bad_lines_seen"]++;
-        stats['messages']['bad_lines_seen']++;
+        counters["statsd.bad_packets_received"]++;
+        stats['messages']['bad_packets_received']++;
         return;
       } else {
         msg = goodPacket;
@@ -335,8 +337,11 @@ config.configFile(process.argv[2], function (config, oldConfig) {
      * surrounded by () on both ends, or is not surrounded at all.
      */
     function verifyPacketIntegrity(msg) {
+      if (msg.length === 0) {
+         return msg;
+      }
       var hasPrefix = msg[0] == '(',
-          hasSuffix = msg.endsWith(')');
+          hasSuffix = msg[msg.length-1] == ')';
 
       // Trim off the (,)
       if (hasPrefix && hasSuffix) {
