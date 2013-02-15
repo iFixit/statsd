@@ -335,8 +335,11 @@ config.configFile(process.argv[2], function (config, oldConfig) {
      * surrounded by () on both ends, or is not surrounded at all.
      */
     function verifyPacketIntegrity(msg) {
+      if (msg.length === 0) {
+         return msg;
+      }
       var hasPrefix = msg[0] == '(',
-          hasSuffix = msg.endsWith(')');
+          hasSuffix = msg[msg.length-1] == ')';
 
       // Trim off the (,)
       if (hasPrefix && hasSuffix) {
