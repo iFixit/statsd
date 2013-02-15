@@ -100,7 +100,18 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
     server = dgram.createSocket('udp4', function (msg, rinfo) {
       counters["statsd.packets_received"]++;
-      var metrics = msg.toString().split("\n");
+      msg = msg.toString();
+
+      var goodPacket = verifyPacketIntegrity(msg);
+      if (!goodPacket) {
+        l.log("Bad packet>>>\n" + msg + "\nBad packet<<<");
+        counters["statsd.bad_lines_seen"]++;
+        stats['messages']['bad_lines_seen']++;
+        return;
+      } else {
+        msg = goodPacket;
+      }
+      var metrics = msg.split("\n");
 
       for (midx in metrics) {
         if (config.dumpMessages) {
@@ -315,8 +326,27 @@ config.configFile(process.argv[2], function (config, oldConfig) {
       }, keyFlushInterval);
     }
 
+    /**
+     * Returns false if the packet is bad, or the trimmed packet if it is good.
+     *
+     * We ran into a situation where partial packets were being received by
+     * statsd every once in a while leading to many stats being recorded under
+     * truncated names. This function verifies that the packet is either
+     * surrounded by () on both ends, or is not surrounded at all.
+     */
+    function verifyPacketIntegrity(msg) {
+      var hasPrefix = msg[0] == '(',
+          hasSuffix = msg.endsWith(')');
 
-  ;
+      // Trim off the (,)
+      if (hasPrefix && hasSuffix) {
+        msg = msg.substr(1, msg.length-2);
+        return msg;
+      } else if (!hasPrefix && !hasSuffix) {
+        return msg;
+      }
 
+      return false;
+    }
   }
 })
